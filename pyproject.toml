@@ -25,5 +25,8 @@ attractor = "cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"cli.py" = "cli.py"
+
 [tool.hatch.metadata]
 allow-direct-references = true

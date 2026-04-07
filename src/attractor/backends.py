@@ -1,5 +1,6 @@
 """CodergenBackend implementations for the Attractor pipeline engine."""
 from __future__ import annotations
+import concurrent.futures
 import os
 from typing import Any
 
@@ -61,7 +62,25 @@ class AgentLoopBackend:
             on_event=on_event,
         )
 
-        result = session.submit(prompt)
+        timeout_s = None
+        if node.attrs.timeout:
+            from .handlers import _parse_duration_s
+            timeout_s = _parse_duration_s(node.attrs.timeout)
+
+        if timeout_s:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(session.submit, prompt)
+                try:
+                    result = future.result(timeout=timeout_s)
+                except concurrent.futures.TimeoutError:
+                    session.abort()
+                    return Outcome(
+                        status=StageStatus.FAIL,
+                        failure_reason=f"Node '{node.id}' timed out after {timeout_s}s",
+                    )
+        else:
+            result = session.submit(prompt)
+
         return result or "(no output)"
 
 
